@@ -1,0 +1,73 @@
+* History Keyword Cleaner
+
+History Keyword Cleaner is a Firefox extension that periodically removes history entries whose URL or page title contains one of your configured keywords.
+
+* What It Does
+
+- Stores a comma-separated list of keywords in the extension options page.
+- Runs a cleanup job on browser startup.
+- Re-runs cleanup every 16 minutes using a browser alarm.
+- Searches Firefox history for matching entries and removes matching URLs.
+- Ignores duplicate keywords and avoids overlapping cleanup runs.
+
+Matching is case-insensitive during cleanup. If any configured keyword appears in a history item's URL or title, that URL is deleted from history.
+
+* Configure Keywords
+
+Open the extension's options page and enter one or more keywords separated by commas, for example:
+
+#+begin_example
+example.com, tracking, temp-site
+#+end_example
+
+Input validation in the options page currently allows only these characters inside each keyword:
+
+- letters and numbers
+- dot: ~.~
+- hyphen: ~-~
+
+* Project Files
+
+- ~manifest.json~: Firefox extension manifest and permissions.
+- ~background.js~: scheduled history cleanup logic.
+- ~options.html~: options page UI.
+- ~options.js~: keyword validation and storage handling.
+
+* Development / Temporary Install
+
+For local development, load the extension temporarily in Firefox:
+
+1. Open ~about:debugging#/runtime/this-firefox~.
+2. Click =Load Temporary Add-on...=.
+3. Select ~manifest.json~ from this project.
+
+Firefox will load the extension until the browser is restarted.
+
+* Permanent Install
+
+To install it in a regular Firefox build, package and sign the add-on:
+
+1. Create an archive containing the project files required by the extension, including at least:
+   - ~manifest.json~
+   - ~background.js~
+   - ~options.html~
+   - ~options.js~
+2. Rename the archive to ~history-cleaner.xpi~.
+3. Go to the Firefox Add-on Developer Hub:
+   https://addons.mozilla.org/en-US/developers/addon/submit/distribution
+4. Choose the self-distribution flow.
+5. Upload the ~.xpi~ file and download the signed build.
+6. In Firefox, open ~about:addons~, choose =Install Add-on From File...=, and select the signed ~.xpi~.
+
+* Permissions
+
+- ~history~: search and delete matching history entries.
+- ~alarms~: run cleanup on a schedule.
+- ~storage~: persist configured keywords.
+
+* Notes
+
+- Cleanup only runs when at least one keyword is configured.
+- The current implementation searches up to 10,000 history results per keyword on each run.
+- Matching URLs are collected and deleted once per cleanup run, even if multiple keywords match the same entry.
+- Keywords are stored as plain comma-separated text in extension storage.

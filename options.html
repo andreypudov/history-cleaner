@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="color-scheme" content="light dark">
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+
+      body {
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 16px;
+        font: message-box;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: inherit;
+      }
+
+      label {
+        font-size: 14px;
+      }
+
+      textarea {
+        flex: 1 1 auto;
+        width: 100%;
+        min-height: 0;
+        padding: 10px 12px;
+        border: 1px solid ButtonBorder;
+        border-radius: 4px;
+        background: Field;
+        color: FieldText;
+        font: 13px monospace;
+        resize: none;
+      }
+
+      textarea:focus-visible {
+        outline: 2px solid Highlight;
+        outline-offset: 1px;
+      }
+
+      textarea.invalid {
+        border-color: #c33;
+      }
+
+      #status {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        max-width: min(320px, calc(100vw - 32px));
+        padding: 8px 10px;
+        border: 1px solid ButtonBorder;
+        border-radius: 4px;
+        background: Canvas;
+        color: CanvasText;
+        font: inherit;
+        font-size: 13px;
+        line-height: 1.4;
+        opacity: 0;
+        transform: translateY(2px);
+        pointer-events: none;
+        transition: opacity 160ms ease, transform 160ms ease;
+      }
+
+      #status:empty {
+        display: none;
+      }
+
+      #status.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      #status.error {
+        border-color: #c33;
+        color: #b00020;
+      }
+    </style>
+  </head>
+  <body>
+    <label id="description" for="keywords">Enter keywords to remove from history (one or more, separated by commas):</label>
+    <textarea id="keywords" placeholder="Enter keywords separated by commas (e.g., example.com, keyword123, test)"></textarea>
+    <div id="status"></div>
+    <script src="options.js"></script>
+  </body>
+</html>
