@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "History Keyword Cleaner",
-  "version": "1.3",
+  "version": "1.4",
   "description": "Automatically removes Firefox history entries containing specific keywords.",
   "author": "Andrey Pudov",
   "homepage_url": "https://andreypudov.com",
