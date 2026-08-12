@@ -1,4 +1,5 @@
-const storage = browser.storage.sync || browser.storage.local;
+const _browser = (typeof browser !== 'undefined') ? browser : (typeof chrome !== 'undefined' ? chrome : null);
+const storage = _browser && _browser.storage ? (_browser.storage.sync || _browser.storage.local) : null;
 const CLEANUP_ALARM_NAME = "historyCleanup";
 const CLEANUP_PERIOD_MINUTES = 16;
 const HISTORY_SEARCH_MAX_RESULTS = 10000;
@@ -7,7 +8,7 @@ let cleanupInProgress = false;
 
 function parseKeywords(rawKeywords = "") {
   return [...new Set(
-    rawKeywords
+    String(rawKeywords)
       .split(",")
       .map((keyword) => keyword.trim().toLowerCase())
       .filter(Boolean)
@@ -15,12 +16,25 @@ function parseKeywords(rawKeywords = "") {
 }
 
 async function getKeywords() {
+  if (!storage || typeof storage.get !== 'function') {
+    console.warn('Storage API unavailable; no keywords loaded.');
+    return [];
+  }
+
   try {
     const result = await storage.get("keywords");
-    return parseKeywords(result.keywords || "");
+    return parseKeywords(result && result.keywords ? result.keywords : "");
   } catch (error) {
     console.error("Failed to load history cleaner keywords.", error);
     return [];
+  }
+}
+
+// Helper: run async functions in batches to avoid overwhelming the API
+async function runInBatches(items, worker, batchSize = 20) {
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    await Promise.all(batch.map((it) => worker(it)));
   }
 }
 
@@ -34,35 +48,44 @@ async function cleanupHistory() {
   try {
     const keywords = await getKeywords();
 
-    if (keywords.length === 0) {
+    if (!keywords || keywords.length === 0) {
       return;
     }
 
     const urlsToDelete = new Set();
 
     for (const keyword of keywords) {
-      const results = await browser.history.search({
-        text: keyword,
-        startTime: 0,
-        maxResults: HISTORY_SEARCH_MAX_RESULTS
-      });
+      try {
+        const results = await _browser.history.search({
+          text: keyword,
+          startTime: 0,
+          maxResults: HISTORY_SEARCH_MAX_RESULTS
+        });
 
-      for (const item of results) {
-        if (!item.url) {
-          continue;
+        for (const item of results || []) {
+          if (!item || !item.url) continue;
+
+          const searchableText = `${item.url} ${item.title || ""}`.toLowerCase();
+
+          if (searchableText.includes(keyword)) {
+            urlsToDelete.add(item.url);
+          }
         }
-
-        const searchableText = `${item.url} ${item.title || ""}`.toLowerCase();
-
-        if (searchableText.includes(keyword)) {
-          urlsToDelete.add(item.url);
-        }
+      } catch (err) {
+        console.warn(`Search failed for keyword "${keyword}":`, err);
+        // continue with other keywords
       }
     }
 
-    for (const url of urlsToDelete) {
-      await browser.history.deleteUrl({ url });
-    }
+    const urls = Array.from(urlsToDelete);
+
+    await runInBatches(urls, async (url) => {
+      try {
+        await _browser.history.deleteUrl({ url });
+      } catch (err) {
+        console.warn('Failed to delete URL', url, err);
+      }
+    }, 10);
   } catch (error) {
     console.error("History cleanup failed.", error);
   } finally {
@@ -70,14 +93,26 @@ async function cleanupHistory() {
   }
 }
 
-browser.alarms.create(CLEANUP_ALARM_NAME, {
-  periodInMinutes: CLEANUP_PERIOD_MINUTES
-});
+// Create alarm/listener only if alarms API is available
+if (_browser && _browser.alarms && typeof _browser.alarms.create === 'function') {
+  try {
+    _browser.alarms.create(CLEANUP_ALARM_NAME, {
+      periodInMinutes: CLEANUP_PERIOD_MINUTES
+    });
 
-browser.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === CLEANUP_ALARM_NAME) {
-    cleanupHistory();
+    _browser.alarms.onAlarm.addListener((alarm) => {
+      if (alarm && alarm.name === CLEANUP_ALARM_NAME) {
+        cleanupHistory();
+      }
+    });
+  } catch (err) {
+    console.warn('Failed to initialize alarms API', err);
   }
-});
+}
 
-cleanupHistory();
+// Run an initial cleanup but don't block startup
+try {
+  cleanupHistory();
+} catch (e) {
+  console.warn('Initial cleanup invocation failed', e);
+}
